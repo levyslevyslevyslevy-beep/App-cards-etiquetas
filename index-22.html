@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#c1443c">
+<meta name="description" content="Importe planilhas Excel e crie cards de entrega automaticamente. Gerencie, edite e rastreie suas entregas com facilidade.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Etiquetas">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23132030' width='192' height='192'/><circle cx='96' cy='96' r='60' fill='%23c1443c'/><text x='96' y='108' font-size='80' font-weight='bold' fill='%23f6f1e6' text-anchor='middle' font-family='Arial'>CEP</text></svg>">
+<title>Etiquetas — Gerenciador de Entregas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#132030;
+    --ink-2:#1c3348;
+    --paper:#f6f1e6;
+    --paper-2:#efe7d6;
+    --stamp:#c1443c;
+    --stamp-dark:#9c332c;
+    --postal:#2c5f8a;
+    --line:#c9bfa6;
+    --text:#20211d;
+    --muted:#6b6455;
+    --ok:#3f7d54;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(255,255,255,0.05), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(255,255,255,0.04), transparent 45%);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 0 48px;}
+
+  /* HEADER */
+  header{
+    padding:28px 20px 22px;
+    color:var(--paper);
+    position:relative;
+    overflow:hidden;
+  }
+  .brand{
+    display:flex;align-items:center;gap:12px;
+  }
+  .stamp-mark{
+    width:40px;height:40px;flex:none;
+    border:2px dashed rgba(246,241,230,0.65);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;font-size:11px;letter-spacing:0.5px;
+    transform:rotate(-8deg);
+    color:rgba(246,241,230,0.85);
+  }
+  .brand h1{
+    font-size:22px;margin:0;font-weight:800;letter-spacing:-0.3px;
+  }
+  .brand p{
+    margin:2px 0 0;font-size:12.5px;color:rgba(246,241,230,0.55);
+    font-family:'JetBrains Mono',monospace;letter-spacing:0.3px;
+  }
+  .perf{
+    margin-top:20px;height:1px;
+    background-image:repeating-linear-gradient(90deg, rgba(246,241,230,0.35) 0 6px, transparent 6px 12px);
+  }
+
+  /* CAPTURE ZONE */
+  .capture{
+    margin:22px 20px 8px;
+    background:var(--paper);
+    border-radius:18px;
+    border:1.5px dashed var(--stamp);
+    padding:26px 20px;
+    text-align:center;
+    position:relative;
+  }
+  .capture-icon{
+    width:52px;height:52px;margin:0 auto 12px;
+    border-radius:50%;
+    background:var(--stamp);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 18px rgba(193,68,60,0.35);
+  }
+  .capture-icon svg{width:26px;height:26px;stroke:var(--paper);}
+  .capture h2{font-size:16px;margin:0 0 4px;font-weight:700;}
+  .capture p{font-size:13px;color:var(--muted);margin:0 0 16px;}
+  #importFile{display:none;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--ink);color:var(--paper);
+    border:none;border-radius:999px;
+    padding:13px 24px;font-size:14.5px;font-weight:600;
+    cursor:pointer;font-family:inherit;
+    transition:transform .12s ease, background .2s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn.stamp-btn{background:var(--stamp);}
+  .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);}
+  .btn:disabled{opacity:0.5;cursor:default;}
+
+  /* ABAS */
+  .tabs{
+    margin:22px 20px 0;display:flex;gap:8px;
+    background:rgba(255,255,255,0.06);border-radius:12px;padding:4px;
+  }
+  .tab-btn{
+    flex:1;border:none;background:transparent;color:rgba(246,241,230,0.55);
+    padding:10px 8px;border-radius:9px;font-family:inherit;font-size:13.5px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .tab-btn.active{background:var(--paper);color:var(--ink);}
+  .tab-count{
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+    background:rgba(0,0,0,0.12);border-radius:999px;padding:1px 7px;
+  }
+  .tab-btn.active .tab-count{background:rgba(0,0,0,0.08);}
+
+  /* SEARCH E FILTROS */
+  .search-row{
+    margin:14px 20px 0;display:flex;align-items:center;gap:8px;
+  }
+  .search-row input{
+    flex:1;padding:10px 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.15);
+    background:rgba(255,255,255,0.06);color:var(--paper);font-size:13.5px;font-family:inherit;
+  }
+  .search-row input::placeholder{color:rgba(246,241,230,0.4);}
+  .search-row input[type="date"]{
+    flex:none;width:132px;padding:10px 10px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.15);
+    background:rgba(255,255,255,0.06);color:var(--paper);font-size:12.5px;font-family:'JetBrains Mono',monospace;
+    color-scheme:dark;
+  }
+  .clear-date-btn{
+    flex:none;width:26px;height:26px;border-radius:50%;border:none;
+    background:rgba(193,68,60,0.18);color:#e8a29c;cursor:pointer;font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .count{
+    font-family:'JetBrains Mono',monospace;font-size:11.5px;color:rgba(246,241,230,0.5);
+    white-space:nowrap;
+  }
+
+  .sort-row{
+    margin:10px 20px 0;display:flex;align-items:center;gap:10px;
+  }
+  .sort-row label{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(246,241,230,0.5);
+    text-transform:uppercase;letter-spacing:0.5px;
+  }
+  .sort-row select{
+    flex:1;padding:9px 12px;border-radius:999px;border:1.5px solid rgba(255,255,255,0.15);
+    background:rgba(255,255,255,0.06);color:var(--paper);font-size:13px;font-family:inherit;
+  }
+  .sort-row select option{background:var(--ink-2);color:var(--paper);}
+
+  /* CARDS */
+  .cards{padding:4px 20px 0;display:flex;flex-direction:column;gap:14px;}
+  .card{
+    background:var(--paper);
+    border-radius:14px;
+    position:relative;
+    padding:16px 16px 14px;
+    box-shadow:0 10px 22px rgba(0,0,0,0.28);
+    border-left:6px solid var(--stamp);
+  }
+  .card::before{
+    content:"";position:absolute;left:16px;right:16px;top:44px;height:1px;
+    background-image:repeating-linear-gradient(90deg, var(--line) 0 5px, transparent 5px 10px);
+  }
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px;}
+  .card-name{
+    font-size:16px;font-weight:800;line-height:1.25;letter-spacing:-0.2px;
+  }
+  .card-date{
+    font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);
+    white-space:nowrap;margin-top:3px;
+  }
+  .card-spx{
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--postal);
+    font-weight:600;margin-top:4px;letter-spacing:0.3px;
+  }
+  .copy-spx{
+    background:transparent;border:none;color:var(--postal);font-weight:600;
+    font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;
+    padding:2px 6px;border-radius:4px;transition:background .15s ease;
+  }
+  .copy-spx:hover{background:rgba(44,95,138,0.15);}
+  .copy-spx:active{transform:scale(0.95);}
+  .copy-cep{
+    background:transparent;border:none;color:var(--postal);font-weight:600;
+    font-family:'JetBrains Mono',monospace;font-size:14px;cursor:pointer;
+    padding:2px 6px;border-radius:4px;transition:background .15s ease;
+  }
+  .copy-cep:hover{background:rgba(44,95,138,0.15);}
+  .copy-cep:active{transform:scale(0.95);}
+  .card-addr{
+    font-size:13.5px;line-height:1.5;color:var(--text);margin-bottom:12px;
+  }
+  .card-addr .empty{color:var(--muted);font-style:italic;}
+  .cep-row{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--paper-2);border-radius:9px;padding:9px 12px;
+  }
+  .cep-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--postal);font-weight:700;letter-spacing:0.5px;}
+  .cep-val{font-family:'JetBrains Mono',monospace;font-size:14.5px;font-weight:700;letter-spacing:0.5px;}
+
+  .card-actions{display:flex;gap:2px;flex:none;}
+  .icon-btn{
+    width:28px;height:28px;border-radius:50%;border:none;
+    background:transparent;color:var(--muted);cursor:pointer;font-size:14px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .icon-btn:hover{color:var(--postal);background:rgba(44,95,138,0.08);}
+  .icon-btn.del-btn:hover{color:var(--stamp);background:rgba(193,68,60,0.08);}
+
+  .status-btn{
+    width:100%;margin-top:12px;border:1.5px solid var(--line);background:transparent;
+    border-radius:9px;padding:9px 10px;font-family:inherit;font-size:12.5px;font-weight:600;
+    color:var(--muted);cursor:pointer;transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .status-btn:hover{border-color:var(--ok);color:var(--ok);}
+  .status-btn.is-done{
+    background:rgba(63,125,84,0.12);border-color:var(--ok);color:var(--ok);
+  }
+
+  .empty-state{
+    margin:30px 20px;padding:36px 20px;text-align:center;
+    border:1.5px dashed rgba(255,255,255,0.18);border-radius:16px;
+    color:rgba(246,241,230,0.55);
+  }
+  .empty-state p{margin:0;font-size:13.5px;line-height:1.6;}
+
+  .fab{
+    position:fixed;right:20px;bottom:26px;z-index:40;
+    width:56px;height:56px;border-radius:50%;border:none;
+    background:var(--ink);color:var(--paper);
+    font-size:28px;line-height:1;font-weight:400;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 22px rgba(0,0,0,0.4);
+    cursor:pointer;transition:transform .12s ease, background .2s ease;
+  }
+  .fab:active{transform:scale(0.93);}
+  .fab::before{
+    content:"";position:absolute;inset:-4px;border-radius:50%;
+    border:1.5px dashed rgba(246,241,230,0.4);
+  }
+
+  /* PAINEL DE EDIÇÃO */
+  .review{
+    margin:14px 20px;background:var(--paper);
+    border-radius:16px;padding:18px;
+    display:none;
+    border:1.5px solid var(--line);
+  }
+  .review.show{display:block;}
+  .review h3{margin:0 0 4px;font-size:14.5px;font-weight:700;}
+  .review .hint{font-size:12px;color:var(--muted);margin:0 0 14px;}
+  .field{margin-bottom:12px;}
+  .field label{
+    display:block;font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;text-transform:uppercase;letter-spacing:0.6px;
+    color:var(--postal);font-weight:700;margin-bottom:5px;
+  }
+  .field textarea, .field input{
+    width:100%;border:1.5px solid var(--line);border-radius:9px;
+    padding:10px 11px;font-family:'JetBrains Mono',monospace;font-size:14px;
+    background:#fff;color:var(--text);resize:vertical;
+  }
+  .field textarea{min-height:52px;}
+  .color-row{display:flex;gap:10px;flex-wrap:wrap;padding-top:2px;}
+  .swatch{
+    width:30px;height:30px;border-radius:50%;border:2px solid transparent;
+    cursor:pointer;position:relative;flex:none;
+  }
+  .swatch.selected{border-color:var(--ink);}
+  .swatch.selected::after{
+    content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:13px;color:var(--ink);font-weight:700;
+  }
+  .review-actions{display:flex;gap:10px;margin-top:6px;}
+  .review-actions .btn{flex:1;justify-content:center;}
+
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120%);
+    background:var(--ink-2);color:var(--paper);padding:11px 20px;border-radius:999px;
+    font-size:13px;font-weight:600;box-shadow:0 10px 24px rgba(0,0,0,0.4);
+    transition:transform .25s ease;z-index:50;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="stamp-mark">CEP</div>
+      <div>
+        <h1>Etiquetas</h1>
+        <p>planilha → cards de entregas</p>
+      </div>
+    </div>
+    <div class="perf"></div>
+  </header>
+
+  <div class="capture">
+    <div class="capture-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+    </div>
+    <h2>Importar planilha</h2>
+    <p>Selecione um arquivo Excel com endereços e CEPs — os cards serão criados automaticamente.</p>
+    <input type="file" id="importFile" accept=".xlsx,.xls">
+    <button class="btn stamp-btn" id="importBtn">Importar Excel</button>
+  </div>
+
+  <div class="tabs" id="tabsRow">
+    <button class="tab-btn active" data-tab="pendente">Pendente <span class="tab-count" id="countPendente"></span></button>
+    <button class="tab-btn" data-tab="concluido">Concluído <span class="tab-count" id="countConcluido"></span></button>
+    <button class="tab-btn" id="clearAllBtn" style="margin-left:auto;color:#e8a29c;flex:none;padding:10px 12px;" title="Apagar todos os cards">🗑️</button>
+  </div>
+
+  <div class="search-row" id="searchRow" style="display:none;">
+    <input type="text" id="searchInput" placeholder="Buscar por nome, endereço ou CEP… (ex: João & Brasília)" autocomplete="off">
+    <input type="date" id="filterDate">
+    <button class="clear-date-btn" id="clearDateBtn" title="Limpar filtro de data" style="display:none;">✕</button>
+    <span class="count" id="countLabel"></span>
+  </div>
+
+  <div class="sort-row" id="sortRow" style="display:none;">
+    <label for="sortSelect">Ordenar por</label>
+    <select id="sortSelect">
+      <option value="recentes">Mais recentes</option>
+      <option value="cep_asc">CEP (crescente)</option>
+      <option value="cep_desc">CEP (decrescente)</option>
+    </select>
+  </div>
+
+  <div class="cards" id="cardsList"></div>
+
+  <div class="empty-state" id="emptyState">
+    <p>Nenhuma entrega capturada ainda.<br>Toque em "Importar Excel" para começar.</p>
+  </div>
+</div>
+
+<button class="fab" id="manualBtn" title="Criar card manualmente">+</button>
+
+<!-- PAINEL DE EDIÇÃO -->
+<div class="review" id="reviewPanel">
+  <h3 id="reviewTitle">Novo card manual</h3>
+  <p class="hint" id="reviewHint">Preencha os dados do destinatário.</p>
+  <div class="field">
+    <label>Nome do destinatário</label>
+    <input type="text" id="fNome" placeholder="Nome (opcional)">
+  </div>
+  <div class="field">
+    <label>Endereço</label>
+    <textarea id="fEndereco" placeholder="Endereço não identificado"></textarea>
+  </div>
+  <div class="field">
+    <label>CEP</label>
+    <input type="text" id="fCep" placeholder="00000-000">
+  </div>
+  <div class="field">
+    <label>Data</label>
+    <input type="date" id="fData">
+  </div>
+  <div class="field">
+    <label>Cor do card</label>
+    <div class="color-row" id="colorRow"></div>
+  </div>
+  <div class="review-actions">
+    <button class="btn ghost" id="cancelBtn">Descartar</button>
+    <button class="btn stamp-btn" id="saveBtn">Salvar card</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'etiquetas_cards_v2';
+
+// Aguarda XLSX estar disponível
+if (typeof window.XLSX === 'undefined') {
+  console.warn('XLSX não carregado ainda, aguardando...');
+}
+let cards = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let editingId = null;
+let selectedColor = '#c1443c';
+const COLOR_PRESETS = ['#c1443c', '#2c5f8a', '#3f7d54', '#b8862f', '#7a5ea8', '#4a4a4a'];
+
+const importFile = document.getElementById('importFile');
+const importBtn = document.getElementById('importBtn');
+const reviewPanel = document.getElementById('reviewPanel');
+const reviewTitle = document.getElementById('reviewTitle');
+const reviewHint = document.getElementById('reviewHint');
+const fNome = document.getElementById('fNome');
+const fEndereco = document.getElementById('fEndereco');
+const fCep = document.getElementById('fCep');
+const fData = document.getElementById('fData');
+const cancelBtn = document.getElementById('cancelBtn');
+const saveBtn = document.getElementById('saveBtn');
+const manualBtn = document.getElementById('manualBtn');
+const colorRow = document.getElementById('colorRow');
+const cardsList = document.getElementById('cardsList');
+const emptyState = document.getElementById('emptyState');
+const searchRow = document.getElementById('searchRow');
+const searchInput = document.getElementById('searchInput');
+const filterDate = document.getElementById('filterDate');
+const clearDateBtn = document.getElementById('clearDateBtn');
+const sortRow = document.getElementById('sortRow');
+const sortSelect = document.getElementById('sortSelect');
+const tabsRow = document.getElementById('tabsRow');
+const countPendente = document.getElementById('countPendente');
+const countConcluido = document.getElementById('countConcluido');
+const countLabel = document.getElementById('countLabel');
+const toast = document.getElementById('toast');
+
+let sortMode = 'recentes';
+let activeTab = 'pendente';
+
+function renderSwatches(){
+  colorRow.innerHTML = COLOR_PRESETS.map(hex => `
+    <button type="button" class="swatch ${hex === selectedColor ? 'selected' : ''}" style="background:${hex}" data-color="${hex}"></button>
+  `).join('');
+  colorRow.querySelectorAll('.swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      selectedColor = sw.dataset.color;
+      renderSwatches();
+    });
+  });
+}
+
+function todayISO(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function formatDataBR(iso){
+  if (!iso) return '—';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function cepNum(c){
+  const digits = (c.cep || '').replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : Infinity;
+}
+
+function persist(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+}
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+}
+
+let toastTimer = null;
+
+importBtn.addEventListener('click', () => importFile.click());
+
+importFile.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importFile.value = '';
+
+  // Aguarda XLSX estar disponível
+  if (typeof window.XLSX === 'undefined') {
+    showToast('Biblioteca de importação carregando... tente novamente em um segundo.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = new Uint8Array(event.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+      if (!rows || rows.length < 2) {
+        showToast('Nenhum dado encontrado na planilha.');
+        return;
+      }
+
+      let added = 0;
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length < 8) continue;
+        
+        const spxTn = (row[3] || '').toString().trim(); // Coluna D
+        const endereco = (row[4] || '').toString().trim();
+        const bairro = (row[5] || '').toString().trim();
+        const cidade = (row[6] || '').toString().trim();
+        let cep = (row[7] || '').toString().trim();
+        
+        if (!endereco && !cep) continue;
+        
+        // normaliza CEP
+        cep = cep.replace(/\D/g, '');
+        if (cep.length === 8) {
+          cep = cep.slice(0, 5) + '-' + cep.slice(5);
+        }
+
+        const fullAddress = [endereco, bairro, cidade].filter(Boolean).join(', ');
+
+        cards.unshift({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+          spxTn: spxTn,
+          nome: '',
+          endereco: fullAddress || 'Sem endereço',
+          cep: cep || '—',
+          cor: COLOR_PRESETS[0],
+          status: 'pendente',
+          data: todayISO(),
+          criadoEm: new Date().toISOString()
+        });
+        added++;
+      }
+
+      if (added > 0) {
+        persist();
+        render();
+        showToast(`✓ ${added} card${added > 1 ? 's' : ''} importado${added > 1 ? 's' : ''}!`);
+      } else {
+        showToast('Nenhum registro válido encontrado na planilha.');
+      }
+    } catch (err) {
+      console.error('Erro ao importar:', err);
+      showToast('Erro ao processar arquivo Excel.');
+    }
+  };
+
+  reader.onerror = () => {
+    showToast('Erro ao ler arquivo.');
+  };
+
+  reader.readAsArrayBuffer(file);
+});
+
+manualBtn.addEventListener('click', () => {
+  editingId = null;
+  selectedColor = COLOR_PRESETS[0];
+  fNome.value = '';
+  fEndereco.value = '';
+  fCep.value = '';
+  fData.value = todayISO();
+  reviewTitle.textContent = 'Novo card manual';
+  reviewHint.textContent = 'Preencha os dados do destinatário.';
+  renderSwatches();
+  reviewPanel.classList.add('show');
+  reviewPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  fNome.focus();
+});
+
+function openEdit(id){
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  editingId = id;
+  selectedColor = c.cor || COLOR_PRESETS[0];
+  fNome.value = c.nome || '';
+  fEndereco.value = c.endereco || '';
+  fCep.value = c.cep || '';
+  fData.value = c.data || todayISO();
+  reviewTitle.textContent = 'Editar card';
+  reviewHint.textContent = 'Altere os dados do destinatário.';
+  renderSwatches();
+  reviewPanel.classList.add('show');
+  reviewPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  fNome.focus();
+}
+
+cancelBtn.addEventListener('click', () => {
+  reviewPanel.classList.remove('show');
+  editingId = null;
+});
+
+saveBtn.addEventListener('click', () => {
+  const nome = fNome.value.trim();
+  const endereco = fEndereco.value.trim();
+  const cep = fCep.value.trim();
+  const data = fData.value || todayISO();
+
+  if (!endereco && !cep) {
+    showToast('Preencha ao menos endereço ou CEP antes de salvar.');
+    return;
+  }
+
+  if (editingId) {
+    const c = cards.find(x => x.id === editingId);
+    if (c) {
+      c.nome = nome;
+      c.endereco = endereco;
+      c.cep = cep;
+      c.cor = selectedColor;
+      c.data = data;
+    }
+    showToast('Card atualizado.');
+  } else {
+    cards.unshift({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      spxTn: '',
+      nome, endereco, cep,
+      cor: selectedColor,
+      status: 'pendente',
+      data: data,
+      criadoEm: new Date().toISOString()
+    });
+    showToast('Card salvo.');
+  }
+
+  persist();
+  render();
+  reviewPanel.classList.remove('show');
+  editingId = null;
+});
+
+function deleteCard(id){
+  cards = cards.filter(c => c.id !== id);
+  persist();
+  render();
+}
+
+function toggleStatus(id){
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  c.status = c.status === 'concluido' ? 'pendente' : 'concluido';
+  persist();
+  render();
+  showToast(c.status === 'concluido' ? 'Movido para Concluído.' : 'Movido para Pendente.');
+}
+
+tabsRow.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.dataset.tab) {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      tabsRow.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === btn.dataset.tab));
+      render();
+    });
+  }
+});
+
+const clearAllBtn = document.getElementById('clearAllBtn');
+clearAllBtn.addEventListener('click', () => {
+  if (cards.length === 0) {
+    showToast('Não há cards para apagar.');
+    return;
+  }
+  if (confirm(`⚠️ Tem certeza?\n\nVai apagar ${cards.length} card${cards.length > 1 ? 's' : ''} permanentemente.`)) {
+    cards = [];
+    persist();
+    render();
+    showToast('✓ Todos os cards foram apagados.');
+  }
+});
+
+searchInput.addEventListener('input', render);
+filterDate.addEventListener('change', () => {
+  clearDateBtn.style.display = filterDate.value ? 'flex' : 'none';
+  render();
+});
+clearDateBtn.addEventListener('click', () => {
+  filterDate.value = '';
+  clearDateBtn.style.display = 'none';
+  render();
+});
+sortSelect.addEventListener('change', () => {
+  sortMode = sortSelect.value;
+  render();
+});
+
+function formatDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' }) + ' ' +
+         d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+}
+
+function escapeHTML(str){
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function render(){
+  const query = searchInput.value.trim().toLowerCase();
+  const dateVal = filterDate.value;
+  const byTab = cards.filter(c => (c.status || 'pendente') === activeTab);
+  let filtered = query
+    ? byTab.filter(c => {
+        const cardText = (c.nome + ' ' + c.endereco + ' ' + c.cep + ' ' + c.spxTn).toLowerCase();
+        // Suporta múltiplas buscas separadas por "&"
+        if (query.includes('&')) {
+          const terms = query.split('&').map(t => t.trim()).filter(t => t.length > 0);
+          // QUALQUER UM dos termos pode estar presente (OU)
+          return terms.some(term => cardText.includes(term));
+        }
+        // Busca simples
+        return cardText.includes(query);
+      })
+    : byTab;
+  if (dateVal) {
+    filtered = filtered.filter(c => c.data === dateVal);
+  }
+  filtered = filtered.slice();
+  if (sortMode === 'cep_asc') {
+    filtered.sort((a, b) => cepNum(a) - cepNum(b));
+  } else if (sortMode === 'cep_desc') {
+    filtered.sort((a, b) => cepNum(b) - cepNum(a));
+  }
+
+  countPendente.textContent = cards.filter(c => (c.status || 'pendente') === 'pendente').length;
+  countConcluido.textContent = cards.filter(c => c.status === 'concluido').length;
+
+  searchRow.style.display = cards.length ? 'flex' : 'none';
+  sortRow.style.display = cards.length ? 'flex' : 'none';
+  countLabel.textContent = byTab.length ? `${filtered.length}/${byTab.length}` : '';
+  emptyState.style.display = filtered.length ? 'none' : 'block';
+  if (byTab.length === 0) {
+    emptyState.querySelector('p').innerHTML = activeTab === 'pendente'
+      ? 'Nenhuma entrega pendente.<br>Toque em "Importar Excel" ou "+" para começar.'
+      : 'Nenhum card concluído ainda.';
+  } else if (filtered.length === 0) {
+    emptyState.querySelector('p').innerHTML = 'Nenhum card encontrado com esse filtro.';
+  }
+
+  cardsList.innerHTML = filtered.map(c => `
+    <div class="card" style="border-left-color:${c.cor || '#c1443c'}">
+      <div class="card-top">
+        <div>
+          <div class="card-name">${escapeHTML(c.nome) || '<span class="empty">—</span>'}</div>
+          <div class="card-date">${formatDataBR(c.data)}</div>
+          <div class="card-spx">
+            ${c.spxTn ? `<button class="copy-spx" data-spx-id="${c.id}">📋 ${c.spxTn}</button>` : ''}
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="icon-btn edit-btn" data-id="${c.id}" title="Editar">✎</button>
+          <button class="icon-btn del-btn" data-id="${c.id}" title="Excluir">✕</button>
+        </div>
+      </div>
+      <div class="card-addr">${escapeHTML(c.endereco) || '<span class="empty">Sem endereço</span>'}</div>
+      <div class="cep-row">
+        <div>
+          <div class="cep-label">CEP</div>
+          <div class="cep-val">${c.cep && c.cep !== '—' ? `<button class="copy-cep" data-cep-id="${c.id}">📋 ${c.cep}</button>` : '—'}</div>
+        </div>
+      </div>
+      <button class="status-btn ${c.status === 'concluido' ? 'is-done' : ''}" data-id="${c.id}">
+        ${c.status === 'concluido' ? '✓ Concluído' : '○ Marcar como concluído'}
+      </button>
+    </div>
+  `).join('');
+
+  cardsList.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteCard(btn.dataset.id));
+  });
+  cardsList.querySelectorAll('.edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => openEdit(btn.dataset.id));
+  });
+  
+  // Event listener para copiar SPX
+  cardsList.querySelectorAll('.copy-spx').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cardId = btn.dataset.spxId;
+      const card = cards.find(c => c.id === cardId);
+      if (card && card.spxTn) {
+        // Método GARANTIDO que funciona em qualquer lugar
+        const textarea = document.createElement('textarea');
+        textarea.value = card.spxTn;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('✓ Copiado: ' + card.spxTn);
+      }
+    });
+  });
+  
+  // Event listener para copiar CEP
+  cardsList.querySelectorAll('.copy-cep').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const cardId = btn.dataset.cepId;
+      const card = cards.find(c => c.id === cardId);
+      if (card && card.cep) {
+        // Mesmo método GARANTIDO
+        const textarea = document.createElement('textarea');
+        textarea.value = card.cep;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('✓ Copiado: ' + card.cep);
+      }
+    });
+  });
+  
+  cardsList.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => toggleStatus(btn.dataset.id));
+  });
+}
+
+renderSwatches();
+render();
+</script>
+
+<!-- Registra o Service Worker para PWA -->
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+    .then((registration) => {
+      console.log('✓ Service Worker registrado');
+    })
+    .catch(() => {
+      // Silenciosamente falha - app continua funcionando normalmente
+    });
+}
+</script>
+</body>
+</html>
