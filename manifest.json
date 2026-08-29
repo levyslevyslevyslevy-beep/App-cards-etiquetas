@@ -1,0 +1,62 @@
+{
+  "name": "Etiquetas - Gerenciador de Entregas",
+  "short_name": "Etiquetas",
+  "description": "Importe planilhas Excel e crie cards de entrega automaticamente. Gerencie, edite e rastreie suas entregas com facilidade.",
+  "start_url": "./etiquetas.html",
+  "display": "standalone",
+  "background_color": "#132030",
+  "theme_color": "#c1443c",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23132030' width='192' height='192'/><circle cx='96' cy='96' r='60' fill='%23c1443c'/><text x='96' y='108' font-size='80' font-weight='bold' fill='%23f6f1e6' text-anchor='middle' font-family='Arial'>CEP</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23132030' width='512' height='512'/><circle cx='256' cy='256' r='200' fill='%23c1443c'/><text x='256' y='290' font-size='260' font-weight='bold' fill='%23f6f1e6' text-anchor='middle' font-family='Arial'>CEP</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23132030' width='540' height='720'/><rect fill='%23f6f1e6' x='20' y='80' width='500' height='600' rx='16'/><text x='270' y='180' font-size='32' font-weight='bold' fill='%23132030' text-anchor='middle'>Etiquetas</text><text x='270' y='220' font-size='16' fill='%23666' text-anchor='middle'>Gerencie suas entregas</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Importar planilha",
+      "short_name": "Importar",
+      "description": "Importe um arquivo Excel com suas entregas",
+      "url": "./etiquetas.html",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%23c1443c' width='96' height='96' rx='20'/><path d='M48 24L48 60M36 48L48 60L60 48' stroke='%23f6f1e6' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Novo card",
+      "short_name": "Novo",
+      "description": "Crie um novo card de entrega manualmente",
+      "url": "./etiquetas.html",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%232c5f8a' width='96' height='96' rx='20'/><path d='M48 30V66M30 48H66' stroke='%23f6f1e6' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
